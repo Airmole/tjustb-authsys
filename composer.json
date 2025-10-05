@@ -1,0 +1,23 @@
+{
+  "name": "airmole/tjustb-authsys",
+  "description": "Tianjin college,USTB SSO Auth system HTTP client",
+  "type": "library",
+  "require": {
+    "php": ">=8.0",
+    "ext-curl": "*",
+    "ext-json": "*",
+    "ext-openssl": "*"
+  },
+  "license": "GPL-3.0-or-later",
+  "authors": [
+    {
+      "name": "Airmole",
+      "email": "admin@airmole.cn"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "Airmole\\TjustbAuthsys\\": "src/"
+    }
+  }
+}
