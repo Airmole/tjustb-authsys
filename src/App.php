@@ -65,7 +65,8 @@ class App extends Base
             'Content-Type: application/json',
             "Referer: {$this->authsysUrl}/personalInfo/personCenter/index.html"
         ];
-        $result = $this->httpRequest('POST', $url, '', $this->cookieString, $headers);
+        $body = json_encode(['n'=> (random_int(0, PHP_INT_MAX - 1) / PHP_INT_MAX) ]); // 就离谱，这个接口必须body传一个随机数，否则会响应400
+        $result = $this->httpRequest('POST', $url, $body, $this->cookieString, $headers);
         if ($result['code'] != self::CODE_SUCCESS) return $result;
         if (json_decode($result['data'], true)) {
             $result['data'] = json_decode($result['data'], true);
@@ -93,8 +94,8 @@ class App extends Base
         $nextUrl = $this->getLocationFromRedirectHeader($result['data']);
         if (empty($nextUrl)) throw new Exception('系统响应异常：' . $result['data']);
 
-        preg_match('/\?ticket=(.*?)/', $nextUrl, $ticket);
-        $ticket = $ticket ?? '';
+        preg_match('/\?ticket=(.*)/', $nextUrl, $ticket);
+        $ticket = $ticket[1] ?? '';
 
         return [ 'url' => $nextUrl, 'ticket' => $ticket];
     }

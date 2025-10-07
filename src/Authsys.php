@@ -163,7 +163,7 @@ class Authsys
     ): array
     {
         $log = new Log($this->usercode, $this->cookie);
-        return $log->accessAppLogs($startTime. $endTime, $page, $pageSize, $result, $typeCode, $appName, $appId);
+        return $log->accessAppLogs($startTime, $endTime, $page, $pageSize, $result, $typeCode, $appName, $appId);
     }
 
     /**
@@ -186,6 +186,31 @@ class Authsys
     {
         $setting = new Setting($this->usercode, $this->cookie);
         return $setting->accountSetting();
+    }
+
+    /**
+     * 解析Cookie字符串
+     * @param string $cookieString Cookie字符串
+     * @return array
+     */
+    public function parseCookieString(string $cookieString = ''): array
+    {
+        $base = new Base();
+        $cookieArray = $base->parseCookieString($cookieString);
+        $this->cookie = $cookieArray;
+        return $cookieArray;
+    }
+
+    /**
+     * Cookie数组转字符串
+     * @param array $cookie Cookie数组
+     * @return string
+     */
+    public function parseCookieArray(array $cookie = []): string
+    {
+        $base = new Base();
+        $this->cookie = $cookie;
+        return $base->parseCookieArray($cookie);
     }
 
 }

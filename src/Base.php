@@ -220,6 +220,40 @@ class Base
     }
 
     /**
+     * 解析Cookie字符串
+     * @param string $cookieString Cookie字符串
+     * @return array Cookie数组
+     */
+    public function parseCookieString(string $cookieString = ''): array
+    {
+        if (str_starts_with($cookieString, 'Cookie: ')) $cookieString = substr($cookieString, 8);
+
+        $cookieArray = [];
+        $cookiePairs = explode(';', $cookieString);
+        foreach ($cookiePairs as $pair) {
+            $pair = trim($pair);
+            $pos = strpos($pair, '=');
+            if ($pos === false) continue;
+            $cookieArray[trim(substr($pair, 0, $pos))] = trim(substr($pair, $pos + 1));
+        }
+        $this->cookieArray = $cookieArray;
+        $this->cookieString = $this->getCookieString($cookieArray);
+        return $cookieArray;
+    }
+
+    /**
+     * 解析Cookie数组
+     * @param array $cookie Cookie数组
+     * @return string Cookie字符串
+     */
+    public function parseCookieArray(array $cookie = []): string
+    {
+        $this->cookieArray = $cookie;
+        $this->cookieString = $this->getCookieString($cookie);
+        return $this->cookieString;
+    }
+
+    /**
      * 从响应头中获取Cookie
      * @param string $key Cookie名称
      * @param string $headerString 响应头字符串
@@ -239,6 +273,7 @@ class Base
     public function getLocationFromRedirectHeader(string $header = ''): string
     {
         preg_match('/Location: (.*)/', $header, $nextUrl);
-        return $nextUrl[1] ?? '';
+        $nextUrl = $nextUrl[1] ?? '';
+        return trim($nextUrl);
     }
 }

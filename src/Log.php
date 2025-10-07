@@ -112,7 +112,7 @@ class Log extends Base
     {
         $url = '/personalInfo/UserLogs/user/queryUserLogs';
         $data = json_encode([
-            "operType" => 1,
+            "operType" => 3,
             "startTime"=> $startTime,
             "endTime"=> $endTime,
             "pageIndex"=> $page,
