@@ -69,9 +69,9 @@ class Base
      * @param string $url
      * @return void
      */
-    public function setAuthsysUrl(string $url = 'http://authserver.bkty.top'): void
+    public function setAuthsysUrl(string $url = 'https://authserver.bkty.top'): void
     {
-        if (empty($url)) $url = 'http://authserver.bkty.top';
+        if (empty($url)) $url = 'https://authserver.bkty.top';
         $this->authsysUrl = $this->getConfig('AUTHSYS_URL', $url);
     }
 
@@ -140,6 +140,10 @@ class Base
             $url = $this->authsysUrl . (str_starts_with($url, '/') ? $url : "/{$url}");
         }
         $url = trim($url);
+        // http协议改为https
+        if (str_starts_with($url, 'http://authserver.bkty.top/')) {
+            $url = str_replace('http://authserver.bkty.top/', 'https://authserver.bkty.top/', $url);
+        }
 
         $defaultHeaders = [
             'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36',

@@ -13,7 +13,22 @@ class Login extends Base
     public function loginPara(): array
     {
         $url = '/authserver/login';
-        $html = $this->httpRequest('GET', $url, '', '', [], true);
+        $html = $this->httpRequest('GET', $url, '', '', [
+            'Connection: keep-alive',
+            'Upgrade-Insecure-Requests: 1',
+            'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0',
+            'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Host: authserver.bkty.top',
+            'sec-ch-ua: "Microsoft Edge";v="143", "Chromium";v="143", "Not A(Brand";v="24"',
+            'sec-ch-ua-mobile: ?0',
+            'sec-ch-ua-platform: "macOS"',
+            'Sec-Fetch-Site: none',
+            'Sec-Fetch-Mode: navigate',
+            'Sec-Fetch-User: ?1',
+            'Sec-Fetch-Dest: document',
+            'Accept-Encoding: gzip, deflate, br, zstd',
+            'Accept-Language: zh-CN,zh;q=0.9'
+        ], true);
         if ($html['code'] != self::CODE_SUCCESS) throw new Exception('系统响应异常：' . $html['data']);
         $response = $html['data'];
         $routeIdStr =  $this->getCookieFromHeader('route', $response);
@@ -50,6 +65,24 @@ class Login extends Base
         // TODO 后续优化支持自动识别滑动验证码
         // if ($this->checkNeedCaptcha($usercode, $cookie)) throw new Exception('需要识别验证码');
 
+        $generalHeaders = [
+            'Connection: keep-alive',
+            'Cache-Control: max-age=0',
+            'Upgrade-Insecure-Requests: 1',
+            'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0',
+            'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Host: authserver.bkty.top',
+            'sec-ch-ua: "Microsoft Edge";v="143", "Chromium";v="143", "Not A(Brand";v="24"',
+            'sec-ch-ua-mobile: ?0',
+            'sec-ch-ua-platform: "macOS"',
+            'Sec-Fetch-Site: same-origin',
+            'Sec-Fetch-Mode: navigate',
+            'Sec-Fetch-User: ?1',
+            'Sec-Fetch-Dest: document',
+            'Accept-Encoding: gzip, deflate, br, zstd',
+            'Accept-Language: zh-CN,zh;q=0.9'
+        ];
+
         $url = '/authserver/login';
         $postData = [
             'username' => $usercode,
@@ -84,10 +117,12 @@ class Login extends Base
 
         $CASTGCCookieStr = $this->getCookieFromHeader('CASTGC', $result['data']);
         if (!empty($CASTGCCookieStr)) $this->insertCookie('CASTGC', $CASTGCCookieStr);
+        $platformMultilingualCookieStr = $this->getCookieFromHeader('platformMultilingual', $result['data']);
+        if (!empty($platformMultilingualCookieStr)) $this->insertCookie('platformMultilingual', $platformMultilingualCookieStr);
         $nextUrl = $this->getLocationFromRedirectHeader($result['data']);
         if (empty($nextUrl)) throw new Exception('系统响应异常：' . $result['data']);
 
-        $redirect = $this->httpRequest('GET', $nextUrl, '', $this->cookieString, $refererHeader, true);
+        $redirect = $this->httpRequest('GET', $nextUrl, '', $this->cookieString, array_merge($generalHeaders, $refererHeader), true);
         if ($redirect['code'] != self::CODE_REDIRECT)  throw new Exception('系统响应异常：' . $redirect['data']);
         $nextUrl = $this->getLocationFromRedirectHeader($redirect['data']);
         if (empty($nextUrl)) throw new Exception('系统响应异常：' . $redirect['data']);
@@ -96,25 +131,22 @@ class Login extends Base
             'GET',
             $nextUrl,
             '',
-            ['org.springframework.web.servlet.i18n.CookieLocaleResolver.LOCALE' => 'zh_CN', 'happyVoyage' => $happyVoyageCookieStr],
-            $refererHeader,
+            $this->cookieString,
+            array_merge($generalHeaders, $refererHeader),
             true
         );
         if ($redirect['code'] != self::CODE_REDIRECT) throw new Exception('系统响应异常：' . $redirect['data']);
         $nextUrl = $this->getLocationFromRedirectHeader($redirect['data']);
         if (empty($nextUrl)) throw new Exception('系统响应异常：' . $redirect['data']);
 
-        $redirect = $this->httpRequest('GET', $nextUrl, '', $this->cookieString, $refererHeader, true);
+        $redirect = $this->httpRequest('GET', $nextUrl, '', $this->cookieString, array_merge($generalHeaders, $refererHeader), true);
         if ($redirect['code'] != self::CODE_REDIRECT) throw new Exception('系统响应异常：' . $redirect['data']);
         $happyVoyageCookieStr = $this->getCookieFromHeader('happyVoyage', $result['data']);
         if (!empty($happyVoyageCookieStr)) $this->insertCookie('happyVoyage', $happyVoyageCookieStr);
         $nextUrl = $this->getLocationFromRedirectHeader($redirect['data']);
         if (empty($nextUrl)) throw new Exception('系统响应异常：' . $redirect['data']);
 
-        $redirect = $this->httpRequest('GET', $nextUrl, '', [
-            'happyVoyage' => $happyVoyageCookieStr,
-            'org.springframework.web.servlet.i18n.CookieLocaleResolver.LOCALE' => 'zh_CN'
-        ], $refererHeader, true);
+        $redirect = $this->httpRequest('GET', $nextUrl, '', $this->cookieString, array_merge($generalHeaders, $refererHeader), true);
         if ($redirect['code'] != self::CODE_REDIRECT) throw new Exception('系统响应异常：' . $redirect['data']);
 
         // 获取CAS Cookie
@@ -128,7 +160,8 @@ class Login extends Base
             'MOD_AUTH_CAS' => $CASCookieStr,
             'happyVoyage' => $happyVoyageCookieStr,
             'org.springframework.web.servlet.i18n.CookieLocaleResolver.LOCALE' => 'zh_CN',
-        ], $refererHeader, true);
+            'platformMultilingual' => 'zh_CN'
+        ], array_merge($generalHeaders, $refererHeader), true);
         if ($redirect['code'] != self::CODE_SUCCESS) throw new Exception('系统响应异常：' . $redirect['data']);
 
         $routeCookieStr = $this->getCookieFromHeader('route', $redirect['data']);
@@ -137,8 +170,8 @@ class Login extends Base
         $jsessionIdCookieStr = $this->getCookieFromHeader('JSESSIONID', $redirect['data']);
         if (!empty($jsessionIdCookieStr)) $this->insertCookie('JSESSIONID', $jsessionIdCookieStr);
 
-        $encryptKeyCookieStr = $this->getCookieFromHeader('EncryptKey', $redirect['data']);
-        if (!empty($encryptKeyCookieStr)) $this->insertCookie('EncryptKey', $encryptKeyCookieStr);
+        $encryptKeyCookieStr = $this->getCookieFromHeader('WIS_PER_ENC', $redirect['data']);
+        if (!empty($encryptKeyCookieStr)) $this->insertCookie('WIS_PER_ENC', $encryptKeyCookieStr);
 
         $refTokenCookieStr = $this->getCookieFromHeader('REFERERCE_TOKEN', $redirect['data']);
         if (!empty($refTokenCookieStr)) $this->insertCookie('REFERERCE_TOKEN', $refTokenCookieStr);
