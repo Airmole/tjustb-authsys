@@ -151,8 +151,10 @@ class Login extends Base
 
         // 获取CAS Cookie
         $CASCookieStr = $this->getCookieFromHeader('MOD_AUTH_CAS', $redirect['data']);
-        if (empty($CASCookieStr)) throw new Exception('CAS Cookie获取失败');
-        $this->insertCookie('MOD_AUTH_CAS', $CASCookieStr);
+        // if (empty($CASCookieStr)) throw new Exception('CAS Cookie获取失败');
+        if (!empty($CASCookieStr)) {
+            $this->insertCookie('MOD_AUTH_CAS', $CASCookieStr);
+        }
         $nextUrl = $this->getLocationFromRedirectHeader($redirect['data']);
         if (empty($nextUrl)) throw new Exception('系统响应异常：' . $redirect['data']);
 
