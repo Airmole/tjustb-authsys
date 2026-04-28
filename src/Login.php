@@ -10,10 +10,10 @@ class Login extends Base
      * 获取登录参数
      * @throws Exception
      */
-    public function loginPara(): array
+    public function loginPara(string $target = 'authsys'): array
     {
         $url = '/authserver/login';
-        $html = $this->httpRequest('GET', $url, '', '', [
+        $headers = [
             'Connection: keep-alive',
             'Upgrade-Insecure-Requests: 1',
             'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0',
@@ -28,8 +28,9 @@ class Login extends Base
             'Sec-Fetch-Dest: document',
             'Accept-Encoding: gzip, deflate, br, zstd',
             'Accept-Language: zh-CN,zh;q=0.9'
-        ], true);
-        if ($html['code'] != self::CODE_SUCCESS) throw new Exception('系统响应异常：' . $html['data']);
+        ];
+        $html = $this->httpRequest('GET', $url, '', '', $headers, true);
+        if ($html['code'] != self::CODE_SUCCESS) throw new Exception('系统响应异常para：' . $html['data']);
         $response = $html['data'];
         $routeIdStr =  $this->getCookieFromHeader('route', $response);
         $jsessionidStr = $this->getCookieFromHeader('JSESSIONID', $response);
@@ -58,7 +59,7 @@ class Login extends Base
      * @param array $params 登录参数
      * @throws Exception
      */
-    public function login(string $usercode, string $password, array $params = []): bool|array
+    public function login(string $usercode, string $password, array $params = [], string $target = 'authsys'): bool|array
     {
         if (empty($params['salt'])) throw new Exception('密码salt值不可为空');
         if (empty($params['execution'])) throw new Exception('execution值不可为空');
@@ -94,12 +95,13 @@ class Login extends Base
             'lt' => $params['lt'],
             'execution' => $params['execution']
         ];
+        $loginHeaders  = ['Content-Type: application/x-www-form-urlencoded'];
         $result = $this->httpRequest(
             'POST',
             $url,
             $postData,
             $params['cookie'],
-            ['Content-Type: application/x-www-form-urlencoded'],
+            $loginHeaders,
             true
         );
         if ($result['code'] != self::CODE_REDIRECT) {
@@ -110,7 +112,8 @@ class Login extends Base
         // 登录成功，记录原cookie
         $this->cookieArray = $params['cookie'];
         $this->cookieString = $this->getCookieString($this->cookieArray);
-        $refererHeader = ["Referer: {$this->authsysUrl}/authserver/login"];
+        $refererHeader = [];
+        if ($target == 'authsys') $refererHeader = ["Referer: {$this->authsysUrl}/authserver/login"];
         // 获取 happyVoyage、CASTGC Cookie值并记录
         $happyVoyageCookieStr = $this->getCookieFromHeader('happyVoyage', $result['data']);
         if (!empty($happyVoyageCookieStr)) $this->insertCookie('happyVoyage', $happyVoyageCookieStr);
@@ -120,12 +123,12 @@ class Login extends Base
         $platformMultilingualCookieStr = $this->getCookieFromHeader('platformMultilingual', $result['data']);
         if (!empty($platformMultilingualCookieStr)) $this->insertCookie('platformMultilingual', $platformMultilingualCookieStr);
         $nextUrl = $this->getLocationFromRedirectHeader($result['data']);
-        if (empty($nextUrl)) throw new Exception('系统响应异常：' . $result['data']);
+        if (empty($nextUrl)) throw new Exception('系统响应异常1：' . $result['data']);
 
         $redirect = $this->httpRequest('GET', $nextUrl, '', $this->cookieString, array_merge($generalHeaders, $refererHeader), true);
-        if ($redirect['code'] != self::CODE_REDIRECT)  throw new Exception('系统响应异常：' . $redirect['data']);
+        if ($redirect['code'] != self::CODE_REDIRECT)  throw new Exception('系统响应异常1-1：' . $redirect['data']);
         $nextUrl = $this->getLocationFromRedirectHeader($redirect['data']);
-        if (empty($nextUrl)) throw new Exception('系统响应异常：' . $redirect['data']);
+        if (empty($nextUrl)) throw new Exception('系统响应异常2：' . $redirect['data']);
 
         $redirect = $this->httpRequest(
             'GET',
@@ -135,19 +138,28 @@ class Login extends Base
             array_merge($generalHeaders, $refererHeader),
             true
         );
-        if ($redirect['code'] != self::CODE_REDIRECT) throw new Exception('系统响应异常：' . $redirect['data']);
+        if ($redirect['code'] != self::CODE_REDIRECT) throw new Exception('系统响应异常2-1：' . $redirect['data']);
         $nextUrl = $this->getLocationFromRedirectHeader($redirect['data']);
-        if (empty($nextUrl)) throw new Exception('系统响应异常：' . $redirect['data']);
+        if (empty($nextUrl)) throw new Exception('系统响应异常3：' . $redirect['data']);
 
         $redirect = $this->httpRequest('GET', $nextUrl, '', $this->cookieString, array_merge($generalHeaders, $refererHeader), true);
-        if ($redirect['code'] != self::CODE_REDIRECT) throw new Exception('系统响应异常：' . $redirect['data']);
+
+        if ($redirect['code'] != self::CODE_REDIRECT) throw new Exception('系统响应异常4：' . $redirect['data']);
         $happyVoyageCookieStr = $this->getCookieFromHeader('happyVoyage', $result['data']);
         if (!empty($happyVoyageCookieStr)) $this->insertCookie('happyVoyage', $happyVoyageCookieStr);
         $nextUrl = $this->getLocationFromRedirectHeader($redirect['data']);
-        if (empty($nextUrl)) throw new Exception('系统响应异常：' . $redirect['data']);
+        if (empty($nextUrl)) throw new Exception('系统响应异常5：' . $redirect['data']);
 
-        $redirect = $this->httpRequest('GET', $nextUrl, '', $this->cookieString, array_merge($generalHeaders, $refererHeader), true);
-        if ($redirect['code'] != self::CODE_REDIRECT) throw new Exception('系统响应异常：' . $redirect['data']);
+        try {
+            $redirect = $this->httpRequest('GET', $nextUrl, '', $this->cookieString, array_merge($generalHeaders, $refererHeader), true);
+            if ($redirect['code'] != self::CODE_REDIRECT) throw new Exception('系统响应异常6：' . $redirect['data']);
+        } catch (\Exception $error) {
+            if (str_contains($error, 'cURL Error: Operation timed out after')) {
+                $this->usercode = $usercode;
+                return ['code' => 200, 'data' => 'success'];
+            }
+            throw new Exception('系统响应异常6-1：' . $error);
+        }
 
         // 获取CAS Cookie
         $CASCookieStr = $this->getCookieFromHeader('MOD_AUTH_CAS', $redirect['data']);
@@ -156,7 +168,7 @@ class Login extends Base
             $this->insertCookie('MOD_AUTH_CAS', $CASCookieStr);
         }
         $nextUrl = $this->getLocationFromRedirectHeader($redirect['data']);
-        if (empty($nextUrl)) throw new Exception('系统响应异常：' . $redirect['data']);
+        if (empty($nextUrl)) throw new Exception('系统响应异常7：' . $redirect['data']);
 
         $redirect = $this->httpRequest('GET', $nextUrl, '', [
             'MOD_AUTH_CAS' => $CASCookieStr,
@@ -164,7 +176,7 @@ class Login extends Base
             'org.springframework.web.servlet.i18n.CookieLocaleResolver.LOCALE' => 'zh_CN',
             'platformMultilingual' => 'zh_CN'
         ], array_merge($generalHeaders, $refererHeader), true);
-        if ($redirect['code'] != self::CODE_SUCCESS) throw new Exception('系统响应异常：' . $redirect['data']);
+        if ($redirect['code'] != self::CODE_SUCCESS) throw new Exception('系统响应异常8：' . $redirect['data']);
 
         $routeCookieStr = $this->getCookieFromHeader('route', $redirect['data']);
         if (!empty($routeCookieStr)) $this->insertCookie('route', $routeCookieStr);
