@@ -26,6 +26,7 @@ class Authsys
      * @var array
      */
     public const TARGET_SYSTEMS = [
+        'edusys' => 'http://jw.bkty.top/jsxsd/sso.jsp',                 // 教务系统
         'ehall' => 'http://ehall.bkty.top/login',                       // 网上办事大厅
         'libsp' => 'https://findtjustb.libsp.cn',                       // 超星图书检索系统
         'fina_lan' => 'http://10.2.254.80:8809/Login/JinZhi_Login',     // 学生收费系统内网
@@ -34,13 +35,14 @@ class Authsys
 
     /**
      * 获取登录所需参数
+     * @param string $target
      * @return array
      * @throws Exception
      */
-    public function loginPara(): array
+    public function loginPara(string $target = 'authsys'): array
     {
         $login = new Login();
-        return $login->loginPara();
+        return $login->loginPara($target);
     }
 
     /**
@@ -50,10 +52,10 @@ class Authsys
      * @param array $params 登录参数
      * @throws Exception
      */
-    public function login(string $usercode, string $password, array $params = []): bool|array
+    public function login(string $usercode, string $password, array $params = [], string $target = 'authsys'): bool|array
     {
         $login = new Login();
-        $result = $login->login($usercode, $password, $params);
+        $result = $login->login($usercode, $password, $params, $target);
         if ($result['code'] == Base::CODE_SUCCESS) {
             $this->usercode = $usercode;
             $this->cookie = $login->cookieArray;
