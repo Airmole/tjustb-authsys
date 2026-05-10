@@ -26,11 +26,11 @@ class Authsys
      * @var array
      */
     public const TARGET_SYSTEMS = [
-        'edusys' => 'http://jw.bkty.top/jsxsd/sso.jsp',                 // 教务系统
-        'ehall' => 'http://ehall.bkty.top/login',                       // 网上办事大厅
+        'edusys' => 'https://jw.tjustb.cn/jsxsd/sso.jsp',                 // 教务系统
+        'ehall' => 'https://ehall.tjustb.cn/login',                       // 网上办事大厅
         'libsp' => 'https://findtjustb.libsp.cn',                       // 超星图书检索系统
         'fina_lan' => 'http://10.2.254.80:8809/Login/JinZhi_Login',     // 学生收费系统内网
-        'fina_wan' => 'https://cwwx.bkty.top/Login/JinZhi_Login',       // 学生收费系统公网(应用未注册状态)
+        'fina_wan' => 'https://cwwx.tjustb.cn/Login/JinZhi_Login',       // 学生收费系统公网(应用未注册状态)
     ];
 
     /**
