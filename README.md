@@ -32,7 +32,7 @@ composer require airmole/tjustb-authsys
 SDK 支持通过环境变量或 .env 文件配置。
 
 支持的配置键：
-- `AUTHSYS_URL`：统一认证系统根地址，默认 `http://authserver.bkty.top`
+- `AUTHSYS_URL`：统一认证系统根地址，默认 `https://authserver.tjustb.cn`
 - `AUTHSYS_TIMEOUT`：请求超时时间（秒），默认 `5`
 - `AUTHSYS_ENV`：自定义 .env 文件绝对路径；若不设置，则默认读取项目根目录上级的 `.env`（即 `src/..` 的同级目录）
 
@@ -157,7 +157,7 @@ try {
 - 常量：`CODE_SUCCESS=200`, `CODE_REDIRECT=302`
 - 配置
   - `setConfigPath(string $path=''): void`
-  - `setAuthsysUrl(string $url='http://authserver.bkty.top'): void`
+  - `setAuthsysUrl(string $url='https://authserver.tjustb.cn'): void`
   - `getConfig(string $key, $default=null, string $path=''): mixed`
 - HTTP
   - `httpRequest(string $method, string $url, mixed $body, mixed $cookie, array $headers=[], bool $showHeaders=false, bool $followLocation=false, int $timeout=5): array`
