@@ -16,9 +16,7 @@ class App extends Base
         $this->usercode = $usercode;
         $this->cookieArray = $cookie;
         $this->cookieString = $this->getCookieString($cookie);
-
-        if (empty($cookie)) throw new Exception('cookie不得为空');
-        if (empty($usercode)) throw new Exception('账号参数不得为空');
+        $this->validateAuthContext($usercode, $cookie);
     }
 
     /**
@@ -36,19 +34,8 @@ class App extends Base
             'pageNumber' => $page,
             'pageSize' => $pageSize,
         ]);
-        $headers = [
-            "refererToken: {$this->cookieArray['REFERERCE_TOKEN']}",
-            'X-Requested-With: XMLHttpRequest',
-            'Accept: application/json',
-            'Content-Type: application/json',
-            "Referer: {$this->authsysUrl}/personalInfo/personCenter/index.html"
-        ];
-        $result = $this->httpRequest('POST', $url, $body, $this->cookieString, $headers);
-        if ($result['code'] != self::CODE_SUCCESS) return $result;
-        if (json_decode($result['data'], true)) {
-            $result['data'] = json_decode($result['data'], true);
-        }
-        return $result;
+        $result = $this->httpRequest('POST', $url, $body, $this->cookieString, $this->jsonHeaders());
+        return $this->decodeJsonData($result);
     }
 
     /**
@@ -58,20 +45,10 @@ class App extends Base
     public function appNameList(): array
     {
         $url = '/personalInfo/UserLogs/user/querySelectAppName';
-        $headers = [
-            "refererToken: {$this->cookieArray['REFERERCE_TOKEN']}",
-            'X-Requested-With: XMLHttpRequest',
-            'Accept: application/json',
-            'Content-Type: application/json',
-            "Referer: {$this->authsysUrl}/personalInfo/personCenter/index.html"
-        ];
-        $body = json_encode(['n'=> (random_int(0, PHP_INT_MAX - 1) / PHP_INT_MAX) ]); // 就离谱，这个接口必须body传一个随机数，否则会响应400
-        $result = $this->httpRequest('POST', $url, $body, $this->cookieString, $headers);
-        if ($result['code'] != self::CODE_SUCCESS) return $result;
-        if (json_decode($result['data'], true)) {
-            $result['data'] = json_decode($result['data'], true);
-        }
-        return $result;
+        // 该接口必须携带随机数，否则服务端返回400
+        $body = json_encode(['n' => mt_rand() / mt_getrandmax()]);
+        $result = $this->httpRequest('POST', $url, $body, $this->cookieString, $this->jsonHeaders());
+        return $this->decodeJsonData($result);
     }
 
     /**
@@ -95,9 +72,6 @@ class App extends Base
         if (empty($nextUrl)) throw new Exception('系统响应异常：' . $result['data']);
 
         preg_match('/\?ticket=(.*)/', $nextUrl, $ticket);
-        $ticket = $ticket[1] ?? '';
-
-        return [ 'url' => $nextUrl, 'ticket' => $ticket];
+        return ['url' => $nextUrl, 'ticket' => $ticket[1] ?? ''];
     }
-
 }

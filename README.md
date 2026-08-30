@@ -82,11 +82,7 @@ try {
         startTime: '2024-09-01 00:00:00',
         endTime: '2024-12-31 23:59:59',
         page: 1,
-        pageSize: 20,
-        result: '',
-        loginLocation: '',
-        typeCode: '',
-        appName: ''
+        pageSize: 20
     );
 
     // 6) 获取访问应用日志
@@ -94,11 +90,7 @@ try {
         startTime: null,
         endTime: null,
         page: 1,
-        pageSize: 10,
-        result: '',
-        typeCode: '',
-        appName: '',
-        appId: ''
+        pageSize: 10
     );
 
     // 7) 访问其他系统（统一认证跳转）
@@ -124,75 +116,69 @@ try {
 - `['code' => 200, 'data' => mixed]`：data 可能是字符串或已解析为数组（SDK 会尝试 json_decode）
 - 部分内部跳转过程会返回 302，用于流程控制；对外暴露的方法若遇异常会抛出 `Exception`
 
-### 类 Authsys
-- `public function loginPara(): array`
-  - 获取登录所需参数（salt、execution、初始 cookie 等）
-- `public function login(string $usercode, string $password, array $params = []): bool|array`
-  - 登录成功：`['code'=>200,'data'=>'success']`，并在对象上设置 `usercode` 与 `cookie`
-  - 登录失败：返回带错误提示的数组，如 `['code'=>403,'data'=>'用户名或密码错误']`；特殊错误可能抛出 `Exception`
-- `public function logout(): array`
-  - 注销登录，成功 `['code'=>200,'data'=>'success']`
-- `public function appList(int $page = 1, int $pageSize = 100): array`
-  - 获取在线应用列表
-- `public function appNameList(): array`
-  - 获取可用于筛选日志的应用名称列表
-- `public function visitOtherSystem(string $targetUrl = ''): array`
-  - 返回 `['url'=>跳转URL,'ticket'=>CAS ticket]`
-- `public function onlineList(): array`
-  - 当前账号在线设备列表
-- `public function loginLogs(...): array`
-  - 登录日志，支持时间窗口、结果、地点、类型、应用名等筛选
-- `public function accessAppLogs(...): array`
-  - 访问应用日志，支持 `appId` 等筛选
-- `public function getUserConf(): array`
-  - 获取用户配置
-- `public function accountSetting(): array`
-  - 获取账号安全设置
-- `public function parseCookieString(string $cookieString = ''): array`
-  - `"Cookie: a=b; c=d"` 转数组，并写入对象 cookie
-- `public function parseCookieArray(array $cookie = []): string`
-  - Cookie 数组转字符串，并写入对象 cookie
+### 类 Authsys（主入口）
 
-### 类 Base（部分常用能力）
+| 方法 | 说明 |
+|------|------|
+| `loginPara(string $target = 'authsys')` | 获取登录所需参数（salt、execution、初始 cookie 等） |
+| `login(string $usercode, string $password, array $params = [], string $target = 'authsys')` | 登录。成功返回 `['code'=>200,'data'=>'success']`，失败返回错误数组 |
+| `logout()` | 注销登录 |
+| `appList(int $page = 1, int $pageSize = 100)` | 获取在线应用列表 |
+| `appNameList()` | 获取可用于筛选日志的应用名称列表 |
+| `visitOtherSystem(string $targetUrl = '')` | 统一认证访问其他系统，返回 `['url'=>跳转URL,'ticket'=>CAS ticket]` |
+| `onlineList()` | 当前账号在线设备列表 |
+| `loginLogs(...)` | 登录日志，支持时间窗口、结果、地点、类型、应用名等筛选 |
+| `accessAppLogs(...)` | 访问应用日志，支持 `appId` 等筛选 |
+| `getUserConf()` | 获取用户配置 |
+| `accountSetting()` | 获取账号安全设置 |
+| `parseCookieString(string $cookieString = '')` | `"Cookie: a=b; c=d"` 转数组，并写入对象 cookie |
+| `parseCookieArray(array $cookie = [])` | Cookie 数组转字符串，并写入对象 cookie |
+
+### 类 Base（基础能力）
+
 - 常量：`CODE_SUCCESS=200`, `CODE_REDIRECT=302`
-- 配置
-  - `setConfigPath(string $path=''): void`
-  - `setAuthsysUrl(string $url='https://authserver.tjustb.cn'): void`
-  - `getConfig(string $key, $default=null, string $path=''): mixed`
-- HTTP
-  - `httpRequest(string $method, string $url, mixed $body, mixed $cookie, array $headers=[], bool $showHeaders=false, bool $followLocation=false, int $timeout=5): array`
-- Cookie/头部工具
-  - `insertCookie(string $key, string $value): void`
-  - `getCookieString(array $cookie=[]): string`
-  - `parseCookieString(string $cookieString=''): array`
-  - `parseCookieArray(array $cookie=[]): string`
-  - `getCookieFromHeader(string $key, string $headerString=''): string`
-  - `getLocationFromRedirectHeader(string $header=''): string`
+- 配置：
+  - `setConfigPath(string $path = '')`：设置配置文件路径
+  - `setAuthsysUrl(string $url = 'https://authserver.tjustb.cn')`：设置认证系统 URL
+  - `getConfig(string $key, $default = null, string $path = '')`：读取配置（环境变量 > .env > 默认值）
+- HTTP 请求：
+  - `httpRequest(string $method, string $url, mixed $body, mixed $cookie, array $headers = [], bool $showHeaders = false, bool $followLocation = false, int $timeout = 5)`：统一 HTTP 请求入口
+- Cookie/头部工具：
+  - `insertCookie(string $key, string $value)`：插入 Cookie
+  - `getCookieString(array $cookie = [])`：Cookie 数组转字符串
+  - `parseCookieString(string $cookieString = '')`：Cookie 字符串转数组
+  - `parseCookieArray(array $cookie = [])`：Cookie 数组转字符串
+  - `getCookieFromHeader(string $key, string $headerString = '')`：从响应头提取 Cookie
+  - `getLocationFromRedirectHeader(string $header = '')`：从响应头提取跳转地址
 
 ### 类 Login（内部被 Authsys 使用）
+
 - `loginPara(): array`
-- `login(string $usercode, string $password, array $params=[]): bool|array`
+- `login(string $usercode, string $password, array $params = [], string $target = 'authsys')`
 - `logout(): array`
 - `validateLoginResult(array $response): bool|array`
 - `encryptPassword(string $data, string $aesKey): string`
-- `decryptPassword(string $data, string $aesKey): string`
 - `randomString(int $length): string`
 
 ### 类 App（需已登录 Cookie 与 usercode）
-- `appList(int $page=1, int $pageSize=100): array`
+
+- `appList(int $page = 1, int $pageSize = 100): array`
 - `appNameList(): array`
-- `visitOtherSystem(string $targetUrl=''): array`
+- `visitOtherSystem(string $targetUrl = ''): array`
 
 ### 类 Log（需已登录 Cookie 与 usercode）
+
 - `onlineList(): array`
 - `loginLogs(...): array`
 - `accessAppLogs(...): array`
 
 ### 类 Setting（需已登录 Cookie 与 usercode）
+
 - `getUserConf(): array`
 - `accountSetting(): array`
 
 ### 异常
+
 - 命名空间：`Airmole\TjustbAuthsys\Exception\Exception`
 - SDK 在流程异常、系统异常时会抛出该异常，请注意捕获
 

@@ -43,6 +43,9 @@ class Base
      */
     public array $cookieArray = [];
 
+    /** @var array 请求 Referer */
+    protected const REFERER = '/personalInfo/personCenter/index.html';
+
     public function __construct()
     {
         // 设置默认配置文件
@@ -60,8 +63,7 @@ class Base
     {
         // 优先使用环境变量 AUTHSYS_ENV 指定的 .env 路径，否则使用项目根目录 .env
         $defaultPath = getenv('AUTHSYS_ENV') ?: (dirname(__DIR__) . '/.env');
-        if ($path === '') $path = $defaultPath;
-        $this->configPath = $path;
+        $this->configPath = $path === '' ? $defaultPath : $path;
     }
 
     /**
@@ -86,24 +88,14 @@ class Base
     {
         // 1) 环境变量优先
         $envVal = getenv($key);
-        if ($envVal !== false) {
-            return $envVal;
-        }
+        if ($envVal !== false) return $envVal;
 
         // 2) 使用传入路径或已设置路径
         $configFile = $path !== '' ? $path : $this->configPath;
         if (!empty($configFile) && file_exists($configFile)) {
             $content = file_get_contents($configFile);
             if ($content !== false) {
-                // 逐行解析 KEY=VALUE，忽略注释与空行
-                $lines = preg_split('/\r\n|\r|\n/', $content);
-                foreach ($lines as $line) {
-                    $line = trim($line);
-                    if ($line === '' || str_starts_with($line, '#')) continue;
-                    $pos = strpos($line, '=');
-                    if ($pos === false) continue;
-                    $k = trim(substr($line, 0, $pos));
-                    $v = trim(substr($line, $pos + 1));
+                foreach ($this->parseEnvLines($content) as $k => $v) {
                     if ($k === $key) return $v !== '' ? $v : $default;
                 }
             }
@@ -114,11 +106,30 @@ class Base
     }
 
     /**
+     * 解析 .env 文件内容为键值对
+     * @param string $content
+     * @return array<string, string>
+     */
+    private function parseEnvLines(string $content): array
+    {
+        $result = [];
+        $lines = preg_split('/\r\n|\r|\n/', $content);
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || str_starts_with($line, '#')) continue;
+            $pos = strpos($line, '=');
+            if ($pos === false) continue;
+            $result[trim(substr($line, 0, $pos))] = trim(substr($line, $pos + 1));
+        }
+        return $result;
+    }
+
+    /**
      * HTTP请求
      * @param string $method 请求方式
      * @param string $url 请求URL
      * @param mixed $body 请求体
-     * @param mixed $cookie  Cookie
+     * @param mixed $cookie Cookie
      * @param array $headers 请求头
      * @param bool $showHeaders 是否返回请求头
      * @param bool $followLocation 是否跟随跳转
@@ -134,16 +145,8 @@ class Base
         bool   $showHeaders = false,
         bool   $followLocation = false,
         int    $timeout = 5
-    ): array
-    {
-        if (!str_starts_with($url, 'http://') && !str_starts_with($url, 'https://')) {
-            $url = $this->authsysUrl . (str_starts_with($url, '/') ? $url : "/{$url}");
-        }
-        $url = trim($url);
-        // http协议改为https
-        if (str_starts_with($url, 'http://authserver.tjustb.cn/')) {
-            $url = str_replace('http://authserver.tjustb.cn/', 'https://authserver.tjustb.cn/', $url);
-        }
+    ): array {
+        $url = $this->normalizeUrl($url);
 
         $defaultHeaders = [
             'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36',
@@ -151,12 +154,7 @@ class Base
             'Accept-Language: zh',
         ];
         $headers = array_merge($defaultHeaders, $headers);
-
-        if (is_string($cookie)) {
-            $cookie = trim($cookie);
-            $headers[] = !str_starts_with($cookie, 'Cookie:') ? "Cookie: {$cookie}" : $cookie;
-        }
-        if (is_array($cookie)) $headers[] = 'Cookie: ' . $this->getCookieString($cookie);
+        $headers = $this->appendCookieHeader($headers, $cookie);
 
         $timeout = (int)$this->getConfig('AUTHSYS_TIMEOUT', $timeout);
 
@@ -197,6 +195,84 @@ class Base
     }
 
     /**
+     * 标准化请求URL
+     * @param string $url
+     * @return string
+     */
+    private function normalizeUrl(string $url): string
+    {
+        if (!str_starts_with($url, 'http://') && !str_starts_with($url, 'https://')) {
+            $url = $this->authsysUrl . (str_starts_with($url, '/') ? $url : "/{$url}");
+        }
+        $url = trim($url);
+
+        // 统一将 http 协议升级为 https
+        $httpBaseUrl = str_replace('https://', 'http://', $this->authsysUrl);
+        if (str_starts_with($url, 'http://') && str_contains($url, $httpBaseUrl)) {
+            $url = str_replace('http://', 'https://', $url);
+        }
+        return $url;
+    }
+
+    /**
+     * 将 Cookie 附加到请求头
+     * @param array $headers
+     * @param mixed $cookie
+     * @return array
+     */
+    private function appendCookieHeader(array $headers, mixed $cookie): array
+    {
+        if (is_string($cookie)) {
+            $cookie = trim($cookie);
+            if ($cookie !== '') {
+                $headers[] = !str_starts_with($cookie, 'Cookie:') ? "Cookie: {$cookie}" : $cookie;
+            }
+        } elseif (is_array($cookie) && !empty($cookie)) {
+            $headers[] = 'Cookie: ' . $this->getCookieString($cookie);
+        }
+        return $headers;
+    }
+
+    /**
+     * 构建 JSON 请求头
+     * @return array
+     */
+    protected function jsonHeaders(): array
+    {
+        return [
+            "refererToken: {$this->cookieArray['REFERERCE_TOKEN']}",
+            'X-Requested-With: XMLHttpRequest',
+            'Accept: application/json',
+            'Content-Type: application/json',
+            "Referer: {$this->authsysUrl}" . self::REFERER
+        ];
+    }
+
+    /**
+     * 解析响应中的 JSON 数据（若可解析则转换）
+     * @param array $response
+     * @return array
+     */
+    protected function decodeJsonData(array $response): array
+    {
+        $decoded = json_decode($response['data'], true);
+        if (is_array($decoded)) {
+            $response['data'] = $decoded;
+        }
+        return $response;
+    }
+
+    /**
+     * 验证登录态（cookie 与 usercode）
+     * @throws Exception\Exception
+     */
+    protected function validateAuthContext(string $usercode, array $cookie): void
+    {
+        if (empty($cookie)) throw new Exception\Exception('cookie不得为空');
+        if (empty($usercode)) throw new Exception\Exception('账号参数不得为空');
+    }
+
+    /**
      * 插入Cookie
      * @param string $key Cookie名称
      * @param string $value Cookie值
@@ -216,11 +292,11 @@ class Base
     public function getCookieString(array $cookie = []): string
     {
         if (empty($cookie)) $cookie = $this->cookieArray;
-        $tempArray = [];
-        foreach ($cookie as $key => $value) {
-            $tempArray[] = $key . '=' . $value;
-        }
-        return implode('; ', $tempArray);
+        return implode('; ', array_map(
+            fn($key, $value) => $key . '=' . $value,
+            array_keys($cookie),
+            array_values($cookie)
+        ));
     }
 
     /**
@@ -277,7 +353,6 @@ class Base
     public function getLocationFromRedirectHeader(string $header = ''): string
     {
         preg_match('/Location: (.*)/', $header, $nextUrl);
-        $nextUrl = $nextUrl[1] ?? '';
-        return trim($nextUrl);
+        return trim($nextUrl[1] ?? '');
     }
 }

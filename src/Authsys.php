@@ -13,17 +13,16 @@ class Authsys
      * 用户账号
      * @var string
      */
-    public string $usercode;
+    public string $usercode = '';
 
     /**
      * 已登录cookie
      * @var array
      */
-    public array $cookie;
+    public array $cookie = [];
 
     /**
      * 目标系统登录URL
-     * @var array
      */
     public const TARGET_SYSTEMS = [
         'edusys' => 'https://jw.tjustb.cn/jsxsd/sso.jsp',                 // 教务系统
@@ -33,16 +32,18 @@ class Authsys
         'fina_wan' => 'https://cwwx.tjustb.cn/Login/JinZhi_Login',        // 学生收费系统公网(应用未注册状态)
     ];
 
+    /** @var Base|null 公共基础实例 */
+    private ?Base $base = null;
+
     /**
      * 获取登录所需参数
-     * @param string $target
+     * @param string $target 目标系统
      * @return array
      * @throws Exception
      */
     public function loginPara(string $target = 'authsys'): array
     {
-        $login = new Login();
-        return $login->loginPara($target);
+        return (new Login())->loginPara($target);
     }
 
     /**
@@ -50,6 +51,8 @@ class Authsys
      * @param string $usercode 账号
      * @param string $password 密码
      * @param array $params 登录参数
+     * @param string $target 目标系统
+     * @return bool|array
      * @throws Exception
      */
     public function login(string $usercode, string $password, array $params = [], string $target = 'authsys'): bool|array
@@ -85,8 +88,7 @@ class Authsys
      */
     public function appList(int $page = 1, int $pageSize = 100): array
     {
-        $app = new App($this->usercode, $this->cookie);
-        return $app->appList($page, $pageSize);
+        return (new App($this->usercode, $this->cookie))->appList($page, $pageSize);
     }
 
     /**
@@ -96,8 +98,7 @@ class Authsys
      */
     public function appNameList(): array
     {
-        $app = new App($this->usercode, $this->cookie);
-        return $app->appNameList();
+        return (new App($this->usercode, $this->cookie))->appNameList();
     }
 
     /**
@@ -108,8 +109,7 @@ class Authsys
      */
     public function visitOtherSystem(string $targetUrl = ''): array
     {
-        $app = new App($this->usercode, $this->cookie);
-        return $app->visitOtherSystem($targetUrl);
+        return (new App($this->usercode, $this->cookie))->visitOtherSystem($targetUrl);
     }
 
     /**
@@ -119,8 +119,7 @@ class Authsys
      */
     public function onlineList(): array
     {
-        $log = new Log($this->usercode, $this->cookie);
-        return $log->onlineList();
+        return (new Log($this->usercode, $this->cookie))->onlineList();
     }
 
     /**
@@ -145,10 +144,10 @@ class Authsys
         string $loginLocation = '',
         string $typeCode = '',
         string $appName = ''
-    ): array
-    {
-        $log = new Log($this->usercode, $this->cookie);
-        return $log->loginLogs($startTime, $endTime, $page, $pageSize, $result, $loginLocation, $typeCode, $appName);
+    ): array {
+        return (new Log($this->usercode, $this->cookie))->loginLogs(
+            $startTime, $endTime, $page, $pageSize, $result, $loginLocation, $typeCode, $appName
+        );
     }
 
     /**
@@ -173,10 +172,10 @@ class Authsys
         string $typeCode = '',
         string $appName = '',
         string $appId = ''
-    ): array
-    {
-        $log = new Log($this->usercode, $this->cookie);
-        return $log->accessAppLogs($startTime, $endTime, $page, $pageSize, $result, $typeCode, $appName, $appId);
+    ): array {
+        return (new Log($this->usercode, $this->cookie))->accessAppLogs(
+            $startTime, $endTime, $page, $pageSize, $result, $typeCode, $appName, $appId
+        );
     }
 
     /**
@@ -186,8 +185,7 @@ class Authsys
      */
     public function getUserConf(): array
     {
-        $setting = new Setting($this->usercode, $this->cookie);
-        return $setting->getUserConf();
+        return (new Setting($this->usercode, $this->cookie))->getUserConf();
     }
 
     /**
@@ -197,8 +195,7 @@ class Authsys
      */
     public function accountSetting(): array
     {
-        $setting = new Setting($this->usercode, $this->cookie);
-        return $setting->accountSetting();
+        return (new Setting($this->usercode, $this->cookie))->accountSetting();
     }
 
     /**
@@ -208,10 +205,7 @@ class Authsys
      */
     public function parseCookieString(string $cookieString = ''): array
     {
-        $base = new Base();
-        $cookieArray = $base->parseCookieString($cookieString);
-        $this->cookie = $cookieArray;
-        return $cookieArray;
+        return $this->getBase()->parseCookieString($cookieString);
     }
 
     /**
@@ -221,9 +215,20 @@ class Authsys
      */
     public function parseCookieArray(array $cookie = []): string
     {
-        $base = new Base();
+        $base = $this->getBase();
         $this->cookie = $cookie;
         return $base->parseCookieArray($cookie);
     }
 
+    /**
+     * 获取或创建 Base 实例
+     * @return Base
+     */
+    private function getBase(): Base
+    {
+        if ($this->base === null) {
+            $this->base = new Base();
+        }
+        return $this->base;
+    }
 }
