@@ -16,9 +16,7 @@ class Log extends Base
         $this->usercode = $usercode;
         $this->cookieArray = $cookie;
         $this->cookieString = $this->getCookieString($cookie);
-
-        if (empty($cookie)) throw new Exception('cookie不得为空');
-        if (empty($usercode)) throw new Exception('账号参数不得为空');
+        $this->validateAuthContext($usercode, $cookie);
     }
 
     /**
@@ -28,16 +26,8 @@ class Log extends Base
     public function onlineList(): array
     {
         $url = '/personalInfo/UserOnline/user/queryUserOnline';
-        $headers = [
-            "refererToken: {$this->cookieArray['REFERERCE_TOKEN']}",
-            'X-Requested-With: XMLHttpRequest',
-            'Accept: application/json',
-            'Content-Type: application/json',
-            "Referer: {$this->authsysUrl}/personalInfo/personCenter/index.html"
-        ];
-        $result = $this->httpRequest('GET', $url, '', $this->cookieString, $headers);
-        if (json_decode($result['data'])) $result['data'] = json_decode($result['data'], true);
-        return $result;
+        $result = $this->httpRequest('GET', $url, '', $this->cookieString, $this->jsonHeaders());
+        return $this->decodeJsonData($result);
     }
 
     /**
@@ -61,30 +51,20 @@ class Log extends Base
         string $loginLocation = '',
         string $typeCode = '',
         string $appName = ''
-    ): array
-    {
-        $url = '/personalInfo/UserLogs/user/queryUserLogs';
-        $data = json_encode([
-            "operType" => 0,
-            "startTime"=> $startTime,
-            "endTime"=> $endTime,
-            "pageIndex"=> $page,
-            "pageSize"=> $pageSize,
-            "result"=> $result,
-            "loginLocation"=> $loginLocation,
-            "typeCode"=> $typeCode,
-            "appName"=> $appName
-        ]);
-        $headers = [
-            "refererToken: {$this->cookieArray['REFERERCE_TOKEN']}",
-            'X-Requested-With: XMLHttpRequest',
-            'Accept: application/json',
-            'Content-Type: application/json',
-            "Referer: {$this->authsysUrl}/personalInfo/personCenter/index.html"
-        ];
-        $response = $this->httpRequest('POST', $url, $data, $this->cookieString, $headers);
-        if (json_decode($response['data'])) $response['data'] = json_decode($response['data'], true);
-        return $response;
+    ): array {
+        return $this->queryLogs(
+            [
+                'operType' => 0,
+                'startTime' => $startTime,
+                'endTime' => $endTime,
+                'pageIndex' => $page,
+                'pageSize' => $pageSize,
+                'result' => $result,
+                'loginLocation' => $loginLocation,
+                'typeCode' => $typeCode,
+                'appName' => $appName,
+            ]
+        );
     }
 
     /**
@@ -108,29 +88,32 @@ class Log extends Base
         string $typeCode = '',
         string $appName = '',
         string $appId = ''
-    ): array
+    ): array {
+        return $this->queryLogs(
+            [
+                'operType' => 3,
+                'startTime' => $startTime,
+                'endTime' => $endTime,
+                'pageIndex' => $page,
+                'pageSize' => $pageSize,
+                'result' => $result,
+                'typeCode' => $typeCode,
+                'appName' => $appName,
+                'appId' => $appId,
+            ]
+        );
+    }
+
+    /**
+     * 通用日志查询
+     * @param array $data 查询参数
+     * @return array
+     */
+    private function queryLogs(array $data): array
     {
         $url = '/personalInfo/UserLogs/user/queryUserLogs';
-        $data = json_encode([
-            "operType" => 3,
-            "startTime"=> $startTime,
-            "endTime"=> $endTime,
-            "pageIndex"=> $page,
-            "pageSize"=> $pageSize,
-            "result"=> $result,
-            "typeCode"=> $typeCode,
-            "appName"=> $appName,
-            "appId" => $appId
-        ]);
-        $headers = [
-            "refererToken: {$this->cookieArray['REFERERCE_TOKEN']}",
-            'X-Requested-With: XMLHttpRequest',
-            'Accept: application/json',
-            'Content-Type: application/json',
-            "Referer: {$this->authsysUrl}/personalInfo/personCenter/index.html"
-        ];
-        $response = $this->httpRequest('POST', $url, $data, $this->cookieString, $headers);
-        if (json_decode($response['data'])) $response['data'] = json_decode($response['data'], true);
-        return $response;
+        $body = json_encode($data);
+        $response = $this->httpRequest('POST', $url, $body, $this->cookieString, $this->jsonHeaders());
+        return $this->decodeJsonData($response);
     }
 }
