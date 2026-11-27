@@ -1,0 +1,8 @@
+master:
+  # 自动构建知识库
+  push:
+    - stages:
+        - name: build knowledge base
+          type: knowledge:update
+          options:
+            include: "**/**.md"
